@@ -66,7 +66,6 @@ async def help_command(update: Update, context: CallbackContext.DEFAULT_TYPE) ->
 
 def main() -> None:
     """Run the bot."""
-    print(TELEGRAM_TOKEN)
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
