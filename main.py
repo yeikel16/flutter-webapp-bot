@@ -1,14 +1,30 @@
 """
-Basic example for a bot that uses inline keyboards. For an in-depth explanation, check out
- https://github.com/python-telegram-bot/python-telegram-bot/wiki/InlineKeyboard-Example.
+Simple example of a Telegram WebApp which displays a color list.
+
+This example has been modified, you can find the original 
+here https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/webappbot.py
 """
+import json
 import logging
 import os
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CallbackContext, CallbackQueryHandler, CommandHandler
-
 from dotenv import load_dotenv
+from telegram import __version__ as TG_VER
+
+try:
+    from telegram import __version_info__
+except ImportError:
+    __version_info__ = (0, 0, 0, 0, 0)  # type: ignore[assignment]
+
+if __version_info__ < (20, 0, 0, "alpha", 1):
+    raise RuntimeError(
+        f"This example is not compatible with your current PTB version {TG_VER}. To view the "
+        f"{TG_VER} version of this example, "
+        f"visit https://docs.python-telegram-bot.org/en/v{TG_VER}/examples.html"
+    )
+
+from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 load_dotenv()
 
@@ -23,55 +39,41 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 link_webapp = 'https://taupe-tulumba-027376.netlify.app/'
 
 
-async def start(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
-    """Sends a message with three inline buttons attached."""
-    keyboard = [
-        [
-            InlineKeyboardButton("Open WebApp", web_app={'url': link_webapp}),
-        ],
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await update.message.reply_text("WebApp made in Flutter", reply_markup=reply_markup)
-
-
-async def button(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
-    """Parses the CallbackQuery and updates the message text."""
-    query = update.callback_query
-
-    # CallbackQueries need to be answered, even if no notification to the user is needed
-    # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
-    await query.answer()
-
-    # keyboard = [
-    #     [
-    #         InlineKeyboardButton("Flutter", url='https://flutter.dev/')
-    #     ], 
-    #     [
-    #         InlineKeyboardButton("Dart", url='https://dart.dev/')
-    #     ]
-    # ]
-
-    # reply_markup = InlineKeyboardMarkup(keyboard)
-
-    # await update.message.reply_text("Your favorite color is:", reply_markup=reply_markup)
-    await query.edit_message_text(text=f"Your favorite color is: {query.data}")
+# Define a `/start` command handler.
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a message with a button that opens a the web app."""
+    await update.message.reply_text(
+        "Please press the button below to choose a color via the WebApp.",
+        reply_markup=ReplyKeyboardMarkup.from_button(
+            KeyboardButton(
+                text="Open WebApp",
+                web_app=WebAppInfo(url=link_webapp)
+            ),
+        ),
+    )
 
 
-async def help_command(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
-    """Displays info on how to use the bot."""
-    await update.message.reply_text("Use /start to test this bot.")
+# Handle incoming WebAppData
+async def web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Print the received data and remove the button."""
+    # Here we use `json.loads`, since the WebApp sends the data JSON serialized string
+    # (see webappbot.html)
+    data = json.loads(update.effective_message.web_app_data.data)
+    await update.message.reply_html(
+        text=f"You have selected the color <code>{data['colorName']}</code>. \n"
+        f"Its value in RGB is <code>#{data['rgb']}</code>.",
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
 
 def main() -> None:
-    """Run the bot."""
+    """Start the bot."""
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
-    # application.add_handler(CallbackQueryHandler(button))
-    # application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(MessageHandler(
+        filters.StatusUpdate.WEB_APP_DATA, web_app_data))
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling()
