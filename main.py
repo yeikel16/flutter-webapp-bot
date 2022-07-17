@@ -1,7 +1,7 @@
 """
 Simple example of a Telegram WebApp which displays a color list.
 
-This example has been modified, you can find the original 
+This example has been modified, you can find the original
 here https://github.com/python-telegram-bot/python-telegram-bot/blob/master/examples/webappbot.py
 """
 import json
@@ -63,6 +63,15 @@ async def web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         text=f"You have selected the color <code>{data['colorName']}</code>. \n"
         f"Its value in RGB is <code>#{data['rgb']}</code>.",
         reply_markup=ReplyKeyboardRemove(),
+    ),
+    await update.message.reply_text(
+        "Please press the button below to choose another color via the WebApp.",
+        reply_markup=ReplyKeyboardMarkup.from_button(
+            KeyboardButton(
+                text="Open WebApp",
+                web_app=WebAppInfo(url=link_webapp)
+            ),
+        ),
     )
 
 
